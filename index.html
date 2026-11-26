@@ -128,6 +128,23 @@ header{background:#0d1117;border-bottom:1px solid #1e2733;padding:12px 20px;disp
 .op-card.warn{border-left-color:#f0883e}
 .op-card.stop{border-left-color:#f85149}
 .op-title{font-size:.75rem;font-weight:800;margin-bottom:4px}
+
+/* MULTI-TIMEFRAME CARDS */
+.tf-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+@media(max-width:480px){.tf-grid{grid-template-columns:1fr}}
+.tf-card{background:#161b22;border:1px solid #21262d;border-radius:8px;padding:10px 12px}
+.tf-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.tf-label{font-size:.72rem;font-weight:800;color:#8b949e;text-transform:uppercase;letter-spacing:.5px}
+.tf-verdict{font-size:.72rem;font-weight:800}
+.tf-score-bar{background:#0a0e1a;border-radius:3px;height:6px;margin-bottom:3px;overflow:hidden}
+.tf-score-num{font-size:.65rem;font-weight:700;margin-bottom:6px}
+.tf-inds{display:flex;gap:8px;flex-wrap:wrap;font-size:.65rem;color:#8b949e;margin-bottom:5px}
+.tf-inds span{display:flex;align-items:center;gap:3px}
+.tf-signals{margin-top:3px}
+.tf-sig{font-size:.63rem;padding:2px 0;line-height:1.4}
+.tf-sig.g{color:#3fb950}
+.tf-sig.r{color:#f85149}
+.tf-pattern{font-size:.65rem;color:#d29922;margin-top:4px;font-style:italic}
 .op-body{font-size:.75rem;color:#8b949e;line-height:1.5}
 .op-prices{display:flex;gap:10px;margin-top:5px;flex-wrap:wrap}
 .op-price{font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:4px}
@@ -636,16 +653,357 @@ function openHunter(id,name,sym){
   document.getElementById('btnHunt').disabled=false;
   runHunt();
 }
-function runHunt(){
+// ═══════════════════════════════════════════════════════════════
+// ANÁLISE TÉCNICA MULTI-TIMEFRAME
+// ═══════════════════════════════════════════════════════════════
+
+async function fetchKlines(symbol, interval, limit=100){
+  const url=`${BINANCE}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  const data=await apiFetch(url);
+  if(!Array.isArray(data)||data.length<20) return null;
+  return data.map(k=>({
+    o:parseFloat(k[1]), h:parseFloat(k[2]), l:parseFloat(k[3]),
+    c:parseFloat(k[4]), v:parseFloat(k[5])
+  }));
+}
+
+function calcEMA(closes, period){
+  const k=2/(period+1);
+  let ema=closes.slice(0,period).reduce((a,b)=>a+b,0)/period;
+  for(let i=period;i<closes.length;i++) ema=closes[i]*k+ema*(1-k);
+  return ema;
+}
+
+function calcEMASeries(closes, period){
+  const k=2/(period+1);
+  const emas=[];
+  let ema=closes.slice(0,period).reduce((a,b)=>a+b,0)/period;
+  emas.push(ema);
+  for(let i=period;i<closes.length;i++){ema=closes[i]*k+ema*(1-k);emas.push(ema);}
+  return emas;
+}
+
+function calcMACD(closes){
+  if(closes.length<35) return null;
+  const ema12=calcEMASeries(closes,12);
+  const ema26=calcEMASeries(closes,26);
+  const offset=ema12.length-ema26.length;
+  const macdLine=ema26.map((_,i)=>ema12[i+offset]-ema26[i]);
+  const signal=calcEMASeries(macdLine,9);
+  const signalOffset=macdLine.length-signal.length;
+  const lastMACD=macdLine[macdLine.length-1];
+  const lastSignal=signal[signal.length-1];
+  const prevMACD=macdLine[macdLine.length-2];
+  const prevSignal=signal[signal.length-2];
+  const histogram=lastMACD-lastSignal;
+  const prevHistogram=prevMACD-prevSignal;
+  const bullishCross=prevMACD<=prevSignal&&lastMACD>lastSignal;
+  const bearishCross=prevMACD>=prevSignal&&lastMACD<lastSignal;
+  return{lastMACD,lastSignal,histogram,prevHistogram,bullishCross,bearishCross,bullish:lastMACD>lastSignal};
+}
+
+function calcBollinger(closes, period=20, mult=2){
+  if(closes.length<period) return null;
+  const slice=closes.slice(-period);
+  const mean=slice.reduce((a,b)=>a+b,0)/period;
+  const variance=slice.reduce((a,b)=>a+(b-mean)**2,0)/period;
+  const std=Math.sqrt(variance);
+  const upper=mean+mult*std;
+  const lower=mean-mult*std;
+  const last=closes[closes.length-1];
+  const pct=(last-lower)/(upper-lower);
+  const squeeze=std/mean<0.015;
+  return{upper,lower,middle:mean,pct,squeeze,aboveMiddle:last>mean};
+}
+
+function calcRSIFull(closes, p=14){
+  if(closes.length<p+1) return 50;
+  let g=0,l=0;
+  for(let i=1;i<=p;i++){const d=closes[i]-closes[i-1];d>0?g+=d:l+=Math.abs(d);}
+  let ag=g/p,al=l/p;
+  for(let i=p+1;i<closes.length;i++){
+    const d=closes[i]-closes[i-1],dg=d>0?d:0,dl=d<0?Math.abs(d):0;
+    ag=(ag*(p-1)+dg)/p;al=(al*(p-1)+dl)/p;
+  }
+  return al===0?100:100-(100/(1+ag/al));
+}
+
+function detectCandlePattern(candles){
+  if(candles.length<3) return null;
+  const c=candles[candles.length-1];
+  const p=candles[candles.length-2];
+  const body=Math.abs(c.c-c.o);
+  const range=c.h-c.l;
+  const upperWick=c.h-Math.max(c.c,c.o);
+  const lowerWick=Math.min(c.c,c.o)-c.l;
+  if(body/range<0.1) return{name:'Doji',bullish:null,score:0};
+  if(lowerWick>body*2&&upperWick<body*0.5&&c.c>c.o) return{name:'Martelo 🔨',bullish:true,score:15};
+  if(upperWick>body*2&&lowerWick<body*0.5&&c.c<c.o) return{name:'Shooting Star ⭐',bullish:false,score:-15};
+  if(c.c>c.o&&p.c<p.o&&c.c>p.o&&c.o<p.c) return{name:'Engolfo de Alta 🟢',bullish:true,score:20};
+  if(c.c<c.o&&p.c>p.o&&c.c<p.o&&c.o>p.c) return{name:'Engolfo de Baixa 🔴',bullish:false,score:-20};
+  if(c.c>c.o&&body/range>0.7) return{name:'Marubozu Alta',bullish:true,score:10};
+  if(c.c<c.o&&body/range>0.7) return{name:'Marubozu Baixa',bullish:false,score:-10};
+  return null;
+}
+
+function analyzeTimeframe(candles){
+  if(!candles||candles.length<30) return null;
+  const closes=candles.map(c=>c.c);
+  const volumes=candles.map(c=>c.v);
+  const rsi=calcRSIFull(closes);
+  const macd=calcMACD(closes);
+  const bb=calcBollinger(closes);
+  const ema21=calcEMA(closes,21);
+  const ema50=calcEMA(closes.length>=50?closes:closes,Math.min(50,closes.length));
+  const price=closes[closes.length-1];
+  const candlePattern=detectCandlePattern(candles);
+  const avgVol=volumes.slice(-20).reduce((a,b)=>a+b,0)/20;
+  const lastVol=volumes[volumes.length-1];
+  const volSpike=lastVol>avgVol*1.5;
+  const aboveEMA21=price>ema21;
+  const aboveEMA50=price>ema50;
+  const emaAligned=ema21>ema50;
+
+  // SCORE 0–100
+  let score=50;
+  let signals=[];
+  let warnings=[];
+
+  // RSI
+  if(rsi<30){score+=15;signals.push(`RSI ${rsi.toFixed(0)} — Sobrevenda extrema`);}
+  else if(rsi<40){score+=8;signals.push(`RSI ${rsi.toFixed(0)} — Zona de suporte`);}
+  else if(rsi>70){score-=15;warnings.push(`RSI ${rsi.toFixed(0)} — Sobrecompra`);}
+  else if(rsi>60){score-=5;warnings.push(`RSI ${rsi.toFixed(0)} — Região sobrecomprada`);}
+  else{signals.push(`RSI ${rsi.toFixed(0)} — Neutro`);}
+
+  // MACD
+  if(macd){
+    if(macd.bullishCross){score+=20;signals.push('MACD cruzou para cima — Sinal de compra');}
+    else if(macd.bearishCross){score-=20;warnings.push('MACD cruzou para baixo — Sinal de venda');}
+    else if(macd.bullish&&macd.histogram>macd.prevHistogram){score+=8;signals.push('MACD bullish e acelerando');}
+    else if(macd.bullish){score+=3;signals.push('MACD bullish');}
+    else{score-=8;warnings.push('MACD bearish');}
+  }
+
+  // EMA
+  if(aboveEMA21&&aboveEMA50&&emaAligned){score+=12;signals.push('Preço acima das EMAs 21 e 50 — Tendência de alta');}
+  else if(aboveEMA21&&!aboveEMA50){score+=4;signals.push('Acima da EMA21, abaixo da EMA50 — Neutro');}
+  else if(!aboveEMA21&&!aboveEMA50){score-=12;warnings.push('Abaixo das EMAs 21 e 50 — Tendência de baixa');}
+  if(emaAligned){score+=3;} else{score-=3;}
+
+  // Bollinger
+  if(bb){
+    if(bb.squeeze){score+=10;signals.push('Bollinger em squeeze — Movimento explosivo iminente');}
+    if(bb.pct<0.1){score+=10;signals.push('Preço na banda inferior — Possível reversão');}
+    else if(bb.pct>0.9){score-=10;warnings.push('Preço na banda superior — Sobreextendido');}
+    else if(bb.aboveMiddle){score+=3;}
+  }
+
+  // Volume
+  if(volSpike){score+=8;signals.push('Volume anômalo — Interesse institucional');}
+
+  // Candle
+  if(candlePattern){
+    score+=candlePattern.score;
+    if(candlePattern.bullish===true) signals.push(`Padrão: ${candlePattern.name}`);
+    else if(candlePattern.bullish===false) warnings.push(`Padrão: ${candlePattern.name}`);
+    else signals.push(`Padrão: ${candlePattern.name}`);
+  }
+
+  score=Math.max(0,Math.min(100,Math.round(score)));
+
+  let verdict,verdictColor,verdictIcon;
+  if(score>=68){verdict='ENTRAR';verdictColor='#3fb950';verdictIcon='🟢';}
+  else if(score>=45){verdict='AGUARDAR';verdictColor='#d29922';verdictIcon='🟡';}
+  else{verdict='EVITAR';verdictColor='#f85149';verdictIcon='🔴';}
+
+  return{score,verdict,verdictColor,verdictIcon,rsi,macd,bb,ema21,ema50,emaAligned,aboveEMA21,aboveEMA50,volSpike,candlePattern,signals,warnings,price};
+}
+
+async function runMultiTimeframeAnalysis(symbol){
+  const [k15,k1h,k4h,k1d]=await Promise.all([
+    fetchKlines(symbol,'15m',100),
+    fetchKlines(symbol,'1h',100),
+    fetchKlines(symbol,'4h',100),
+    fetchKlines(symbol,'1d',100),
+  ]);
+  const tf15=analyzeTimeframe(k15);
+  const tf1h=analyzeTimeframe(k1h);
+  const tf4h=analyzeTimeframe(k4h);
+  const tf1d=analyzeTimeframe(k1d);
+
+  // Score de confluência: peso maior para timeframes maiores
+  const tfs=[tf15,tf1h,tf4h,tf1d].filter(Boolean);
+  const weights=[1,2,3,4];
+  let totalScore=0,totalWeight=0;
+  [tf15,tf1h,tf4h,tf1d].forEach((tf,i)=>{
+    if(tf){totalScore+=tf.score*weights[i];totalWeight+=weights[i];}
+  });
+  const confluenceScore=totalWeight>0?Math.round(totalScore/totalWeight):50;
+
+  let globalVerdict,globalColor,globalIcon;
+  if(confluenceScore>=68){globalVerdict='ENTRAR';globalColor='#3fb950';globalIcon='🟢';}
+  else if(confluenceScore>=45){globalVerdict='AGUARDAR';globalColor='#d29922';globalIcon='🟡';}
+  else{globalVerdict='EVITAR';globalColor='#f85149';globalIcon='🔴';}
+
+  // Alinhamento de tendência
+  const bullishTFs=tfs.filter(t=>t.verdict==='ENTRAR').length;
+  const bearishTFs=tfs.filter(t=>t.verdict==='EVITAR').length;
+  let alignmentMsg='';
+  if(bullishTFs>=3) alignmentMsg=`✅ ${bullishTFs}/${tfs.length} timeframes bullish — Alta confluência`;
+  else if(bearishTFs>=3) alignmentMsg=`⚠️ ${bearishTFs}/${tfs.length} timeframes bearish`;
+  else alignmentMsg=`⚡ Mercado dividido — aguardar definição`;
+
+  return{tf15,tf1h,tf4h,tf1d,confluenceScore,globalVerdict,globalColor,globalIcon,alignmentMsg};
+}
+
+function renderTFCard(label, tf){
+  if(!tf) return `<div class="tf-card"><div class="tf-label">${label}</div><div style="color:#8b949e;font-size:.7rem">Dados insuficientes</div></div>`;
+  const barW=tf.score;
+  const barColor=tf.score>=68?'#3fb950':tf.score>=45?'#d29922':'#f85149';
+  const rsiColor=tf.rsi<30?'#58a6ff':tf.rsi<45?'#3fb950':tf.rsi<55?'#d29922':tf.rsi<70?'#3fb950':'#f85149';
+  return`<div class="tf-card">
+    <div class="tf-header">
+      <span class="tf-label">${label}</span>
+      <span class="tf-verdict" style="color:${tf.verdictColor}">${tf.verdictIcon} ${tf.verdict}</span>
+    </div>
+    <div class="tf-score-bar"><div style="width:${barW}%;background:${barColor};height:100%;border-radius:3px;transition:width .4s"></div></div>
+    <div class="tf-score-num" style="color:${barColor}">Score: ${tf.score}/100</div>
+    <div class="tf-inds">
+      <span>RSI <strong style="color:${rsiColor}">${tf.rsi.toFixed(0)}</strong></span>
+      ${tf.macd?`<span>MACD <strong style="color:${tf.macd.bullish?'#3fb950':'#f85149'}">${tf.macd.bullish?'▲':'▼'}</strong>${tf.macd.bullishCross?' 🔄 cruzou':''}</span>`:''}
+      <span>EMA <strong style="color:${tf.aboveEMA21&&tf.aboveEMA50?'#3fb950':tf.aboveEMA21?'#d29922':'#f85149'}">${tf.aboveEMA21&&tf.aboveEMA50?'✅':'⚠️'}</strong></span>
+      ${tf.bb?`<span>BB <strong style="color:${tf.bb.squeeze?'#f0883e':'#8b949e'}">${tf.bb.squeeze?'SQUEEZE':(tf.bb.pct*100).toFixed(0)+'%'}</strong></span>`:''}
+    </div>
+    ${tf.signals.length?`<div class="tf-signals">${tf.signals.slice(0,2).map(s=>`<div class="tf-sig g">↑ ${s}</div>`).join('')}</div>`:''}
+    ${tf.warnings.length?`<div class="tf-signals">${tf.warnings.slice(0,2).map(w=>`<div class="tf-sig r">↓ ${w}</div>`).join('')}</div>`:''}
+    ${tf.candlePattern?`<div class="tf-pattern">🕯️ ${tf.candlePattern.name}</div>`:''}
+  </div>`;
+}
+
+function generateReportWithTA(coin, analysis){
+  if(!coin||!coin.price) return generateReport(coin);
+  const {confluenceScore,globalVerdict,globalColor,globalIcon,alignmentMsg,tf15,tf1h,tf4h,tf1d}=analysis;
+  const c24=coin.c24||0;
+  const rsi=tf1h?tf1h.rsi:(coin.rsi||50);
+  const vol=coin.volume||0,mcap=coin.mcap||1;
+  const volR=(vol/mcap*100).toFixed(1);
+  const price=coin.price;
+  const now=new Date().toLocaleTimeString('pt-BR');
+
+  // Ponto de entrada baseado na análise técnica
+  const tf=tf1h||tf4h||tf15;
+  let epLabel='',slLabel='',t1Label='',t2Label='';
+  if(tf&&tf.bb){
+    const ep=tf.bb.pct<0.3?price:price; // entrada próxima ao preço atual
+    const sl=tf.bb.lower<price*0.95?price*0.94:tf.bb.lower*0.995;
+    const t1=tf.ema21>price?tf.ema21:price*1.08;
+    const t2=tf.ema50>t1?tf.ema50:price*1.15;
+    epLabel=`${fmtP(ep)} (preço atual)`;
+    slLabel=`${fmtP(sl)} (${((sl/price-1)*100).toFixed(1)}%)`;
+    t1Label=`${fmtP(t1)} (${((t1/price-1)*100).toFixed(1)}%) — EMA21`;
+    t2Label=`${fmtP(t2)} (${((t2/price-1)*100).toFixed(1)}%) — EMA50`;
+  } else {
+    const sl=price*0.93,t1=price*1.10,t2=price*1.18;
+    epLabel=fmtP(price);slLabel=`${fmtP(sl)} (-7%)`;t1Label=`${fmtP(t1)} (+10%)`;t2Label=`${fmtP(t2)} (+18%)`;
+  }
+
+  const scoreColor=confluenceScore>=68?'#3fb950':confluenceScore>=45?'#d29922':'#f85149';
+  const scoreBar=`<div style="background:#1e2733;border-radius:6px;height:10px;margin:6px 0"><div style="width:${confluenceScore}%;background:${scoreColor};height:100%;border-radius:6px;transition:width .5s"></div></div>`;
+
+  return`<div class="report-box">
+    <div class="report-hdr"><h3>📊 ${coin.name} (${coin.symbol?.toUpperCase()})</h3><span class="report-time">${now}</span></div>
+    <div class="report-body">
+
+      <!-- VEREDITO GLOBAL -->
+      <div class="report-section" style="border:1px solid ${globalColor}33;background:${globalColor}0d;border-radius:8px;padding:12px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:1.1rem;font-weight:900;color:${globalColor}">${globalIcon} ${globalVerdict}</span>
+          <span style="font-size:.7rem;color:#8b949e">Confluência Multi-Timeframe</span>
+        </div>
+        <div style="font-size:.75rem;color:#8b949e;margin-bottom:4px">${alignmentMsg}</div>
+        ${scoreBar}
+        <div style="display:flex;justify-content:space-between;font-size:.65rem;color:${scoreColor}">
+          <span>Score: ${confluenceScore}/100</span>
+          <span>${confluenceScore>=68?'Alta probabilidade de entrada':'Aguardar melhor configuração'}</span>
+        </div>
+      </div>
+
+      <!-- ANÁLISE POR TIMEFRAME -->
+      <div class="report-section">
+        <div class="rs-title">🕯️ ANÁLISE TÉCNICA POR TIMEFRAME</div>
+        <div class="tf-grid">
+          ${renderTFCard('15 min',tf15)}
+          ${renderTFCard('1 hora',tf1h)}
+          ${renderTFCard('4 horas',tf4h)}
+          ${renderTFCard('1 dia',tf1d)}
+        </div>
+      </div>
+
+      <!-- SITUAÇÃO ATUAL -->
+      <div class="report-section">
+        <div class="rs-title">📈 SITUAÇÃO DE MERCADO</div>
+        <div class="rs-content"><ul>
+          <li><strong>Preço:</strong> ${fmtP(price)} &nbsp;|&nbsp; <strong>24h:</strong> <span style="color:${c24>=0?'#3fb950':'#f85149'}">${c24>=0?'+':''}${c24.toFixed(2)}%</span></li>
+          <li><strong>Vol/MCap:</strong> ${volR}% — ${parseFloat(volR)>12?'🔥 Volume anômalo':'Normal'}</li>
+          ${tf1h?`<li><strong>EMA21/50 (1h):</strong> ${tf1h.aboveEMA21&&tf1h.aboveEMA50?'✅ Preço acima das duas — tendência de alta':tf1h.aboveEMA21?'⚠️ Acima da EMA21, abaixo da EMA50':'🔴 Abaixo das duas EMAs'}</li>`:''}
+          ${tf4h&&tf4h.bb?`<li><strong>Bollinger (4h):</strong> ${tf4h.bb.squeeze?'🔥 Squeeze detectado — movimento iminente':tf4h.bb.pct<0.2?'Banda inferior — suporte':tf4h.bb.pct>0.8?'Banda superior — resistência':'Meio das bandas'}</li>`:''}
+        </ul></div>
+      </div>
+
+      <!-- OPERAÇÃO -->
+      <div class="report-section">
+        <div class="rs-title">🎯 OPERAÇÃO SUGERIDA (baseada nos candles)</div>
+        <div class="op-card">
+          <div class="op-title">${globalIcon} ${globalVerdict === 'ENTRAR' ? '📈 CONFIGURAÇÃO DE ENTRADA' : globalVerdict === 'AGUARDAR' ? '⏳ AGUARDAR CONFIRMAÇÃO' : '🚫 EVITAR ENTRADA AGORA'}</div>
+          <div class="op-prices">
+            <span class="op-price op-entry">Entrada: ${epLabel}</span>
+            <span class="op-price op-stop">Stop-Loss: ${slLabel}</span>
+            <span class="op-price op-target">Alvo 1: ${t1Label}</span>
+            <span class="op-price op-target">Alvo 2: ${t2Label}</span>
+          </div>
+        </div>
+        ${globalVerdict==='AGUARDAR'?`<div style="margin-top:8px;padding:8px 10px;background:#d2992215;border:1px solid #d2992240;border-radius:6px;font-size:.73rem;color:#d29922">
+          ⏳ <strong>O que aguardar:</strong>
+          ${tf1h&&!tf1h.macd?.bullish?' · MACD cruzar para cima na 1h':''}
+          ${tf4h&&tf4h.rsi>60?' · RSI 4h recuar abaixo de 60':''}
+          ${tf4h&&tf4h.bb?.pct>0.7?' · Preço retornar à média das Bandas de Bollinger':''}
+          ${confluenceScore>=55?' · Aguardar candle de confirmação (fechamento acima da EMA21)':''}
+        </div>`:''}
+        <div class="op-card warn" style="margin-top:8px">
+          <div class="op-title">⚠️ GESTÃO DE RISCO</div>
+          <div class="op-body">Nunca arrisque mais de 2-5% do capital por operação. Use stop-loss sempre. Rafael executa todas as operações manualmente.</div>
+        </div>
+      </div>
+
+      <!-- VERIFICAR NOTÍCIAS -->
+      <div style="margin-top:8px;padding:8px 10px;background:#1e2733;border-radius:6px;font-size:.75rem;color:#8b949e">
+        ⚠️ <strong>Verificar no X/Google:</strong> "${coin.symbol?.toUpperCase()} news today" antes de entrar
+      </div>
+    </div>
+  </div>`;
+}
+
+async function runHunt(){
   if(!selectedCoin) return;
   const coin=allData.find(c=>c.id===selectedCoin.id);
   const btn=document.getElementById('btnHunt');
-  btn.disabled=true; btn.textContent='🔍 Analisando...';
-  document.getElementById('huntResults').innerHTML=`<div class="loading-hunt"><div class="spinner"></div><div class="loading-text">Analisando ${selectedCoin.name}...</div></div>`;
-  setTimeout(()=>{
-    document.getElementById('huntResults').innerHTML=generateReport(coin||selectedCoin);
-    btn.disabled=false; btn.textContent='🔍 Analisar & Caçar Notícias';
-  },900);
+  btn.disabled=true; btn.textContent='📊 Analisando candles...';
+  document.getElementById('huntResults').innerHTML=`<div class="loading-hunt"><div class="spinner"></div><div class="loading-text">Buscando dados técnicos de ${selectedCoin.name}... (15m · 1h · 4h · 1D)</div></div>`;
+
+  const symbol = coin ? COIN_MAP[coin.id]?.sym : (selectedCoin.sym+'USDT');
+
+  if(symbol) {
+    try {
+      const analysis = await runMultiTimeframeAnalysis(symbol);
+      document.getElementById('huntResults').innerHTML = generateReportWithTA(coin||selectedCoin, analysis);
+    } catch(e) {
+      document.getElementById('huntResults').innerHTML = generateReport(coin||selectedCoin);
+    }
+  } else {
+    document.getElementById('huntResults').innerHTML = generateReport(coin||selectedCoin);
+  }
+  btn.disabled=false; btn.textContent='🔍 Analisar & Caçar Notícias';
 }
 
 function generateReport(coin){
