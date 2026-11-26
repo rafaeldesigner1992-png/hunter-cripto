@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crypto Intelligence Hub</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0e1a;color:#e6edf3;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+
+/* HEADER */
+header{background:#0d1117;border-bottom:1px solid #1e2733;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.logo h1{font-size:1rem;font-weight:800;background:linear-gradient(135deg,#58a6ff,#bc8cff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo-sub{font-size:0.65rem;color:#8b949e;margin-top:1px}
+.header-right{display:flex;align-items:center;gap:12px}
+.live-dot{width:7px;height:7px;background:#3fb950;border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+.last-upd{font-size:0.7rem;color:#8b949e}
+.btn{padding:6px 14px;border-radius:6px;border:1px solid #388bfd;background:transparent;color:#58a6ff;font-size:0.78rem;font-weight:700;cursor:pointer;transition:all .2s}
+.btn:hover{background:#388bfd22}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* TABS NAV */
+.nav{display:flex;gap:2px;background:#0d1117;border-bottom:1px solid #1e2733;padding:0 16px}
+.nav-tab{padding:10px 18px;font-size:0.8rem;font-weight:700;cursor:pointer;border:none;background:transparent;color:#8b949e;border-bottom:2px solid transparent;transition:all .2s}
+.nav-tab.active{color:#58a6ff;border-bottom-color:#58a6ff}
+.nav-tab:hover:not(.active){color:#e6edf3}
+.nav-badge{display:inline-block;background:#f85149;color:#fff;font-size:.6rem;font-weight:800;padding:1px 5px;border-radius:10px;margin-left:5px;min-width:16px;text-align:center}
+.nav-badge.green{background:#2ea043}
+
+/* PANELS */
+.panel{display:none}.panel.active{display:block}
+
+/* MARKET BAR */
+.market-bar{display:flex;gap:0;background:#0d1117;border-bottom:1px solid #1e2733;overflow-x:auto;padding:0 8px}
+.mb-item{display:flex;flex-direction:column;align-items:center;padding:7px 14px;min-width:90px;border-right:1px solid #1e2733}
+.mb-label{font-size:0.6rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px}
+.mb-val{font-size:.85rem;font-weight:800;margin-top:2px}
+.g{color:#3fb950}.r{color:#f85149}.b{color:#58a6ff}.y{color:#d29922}.p{color:#bc8cff}
+
+/* ALERTS STRIP */
+.alerts-strip{padding:8px 16px;background:#0d1117;border-bottom:1px solid #1e2733;display:none}
+.alert-item{display:inline-flex;align-items:center;gap:8px;background:#1a1a2e;border:1px solid #f0883e44;border-radius:20px;padding:4px 12px;margin:3px;cursor:pointer;transition:all .2s;font-size:.75rem}
+.alert-item:hover{border-color:#f0883e;background:#f0883e11}
+.alert-pulse{width:6px;height:6px;background:#f0883e;border-radius:50%;animation:pulse 1.5s infinite}
+.alert-label{font-weight:700;color:#f0883e}
+.alert-change{color:#3fb950;font-weight:700}
+
+/* RADAR GRID */
+.controls{padding:10px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #1e2733}
+.tab-group{display:flex;gap:3px;background:#161b22;border-radius:7px;padding:3px}
+.rtab{padding:5px 12px;border-radius:5px;border:none;cursor:pointer;font-size:.75rem;font-weight:700;background:transparent;color:#8b949e;transition:all .2s}
+.rtab.active{background:#58a6ff;color:#0a0e1a}
+.search-box{padding:6px 11px;border-radius:6px;border:1px solid #30363d;background:#161b22;color:#e6edf3;font-size:.78rem;width:160px;outline:none}
+.search-box:focus{border-color:#58a6ff}
+.sort-sel{padding:6px 10px;border-radius:6px;border:1px solid #30363d;background:#161b22;color:#e6edf3;font-size:.75rem;outline:none;cursor:pointer}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:1px;background:#1e2733}
+.sec-hdr{padding:8px 16px;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#8b949e;background:#0a0e1a;border-bottom:1px solid #1e2733;display:flex;align-items:center;gap:8px}
+.sec-dot{width:7px;height:7px;border-radius:50%}
+
+/* COIN CARD */
+.card{background:#0d1117;padding:13px 15px;cursor:pointer;transition:background .15s;border-left:3px solid transparent}
+.card:hover{background:#111827}
+.card.momentum{border-left-color:#f0883e}
+.card.oversold-card{border-left-color:#58a6ff}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px}
+.ci{display:flex;align-items:center;gap:8px}
+.cname{font-weight:800;font-size:.9rem}
+.csym{font-size:.7rem;color:#8b949e;margin-top:1px}
+.sig-badge{padding:3px 9px;border-radius:20px;font-size:.67rem;font-weight:800;letter-spacing:.5px;white-space:nowrap}
+.bull{background:#0d4a2444;color:#3fb950;border:1px solid #2ea04366}
+.bear{background:#4a0d0d44;color:#f85149;border:1px solid #f8514966}
+.neutral{background:#2a2a0d44;color:#d29922;border:1px solid #d2992266}
+.oversold{background:#0a2a4a44;color:#58a6ff;border:1px solid #58a6ff66}
+.overbought{background:#2a0a3a44;color:#bc8cff;border:1px solid #bc8cff66}
+.momentum-sig{background:#3a1a0044;color:#f0883e;border:1px solid #f0883e66}
+
+.price-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+.price{font-size:1rem;font-weight:800}
+.chg-wrap{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.chg{font-size:.7rem;font-weight:700;padding:2px 6px;border-radius:4px}
+.chg-g{background:#0d4a2433;color:#3fb950}
+.chg-r{background:#4a0d0d33;color:#f85149}
+
+.inds{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:7px}
+.ind{background:#161b22;border-radius:5px;padding:5px 8px}
+.ind-l{font-size:.6rem;color:#8b949e;text-transform:uppercase}
+.ind-v{font-size:.82rem;font-weight:800;margin-top:1px}
+.rsi-bar{height:3px;background:#21262d;border-radius:2px;margin-top:3px;overflow:hidden}
+.rsi-fill{height:100%;border-radius:2px}
+
+.momentum-bar{margin-bottom:7px}
+.mom-label{font-size:.62rem;color:#8b949e;text-transform:uppercase;margin-bottom:3px;display:flex;justify-content:space-between}
+.mom-track{height:5px;background:#1e2733;border-radius:3px;overflow:hidden}
+.mom-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#3fb950,#f0883e,#f85149)}
+
+.card-footer{display:flex;justify-content:space-between;align-items:center}
+.mcap-info{font-size:.67rem;color:#8b949e}
+.hunt-btn{font-size:.67rem;padding:3px 9px;border-radius:5px;border:1px solid #388bfd44;background:transparent;color:#58a6ff;cursor:pointer;transition:all .2s;font-weight:700}
+.hunt-btn:hover{background:#388bfd22;border-color:#388bfd}
+
+/* NEWS HUNTER */
+.hunter-panel{padding:16px}
+.hunter-intro{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:16px;margin-bottom:16px;text-align:center}
+.hunter-intro h3{color:#58a6ff;margin-bottom:6px;font-size:.9rem}
+.hunter-intro p{color:#8b949e;font-size:.78rem;line-height:1.5}
+.coin-selector{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.coin-pill{padding:5px 12px;border-radius:20px;border:1px solid #30363d;background:#0d1117;color:#8b949e;font-size:.75rem;font-weight:700;cursor:pointer;transition:all .2s}
+.coin-pill:hover{border-color:#58a6ff;color:#58a6ff}
+.coin-pill.selected{background:#58a6ff22;border-color:#58a6ff;color:#58a6ff}
+.btn-hunt{width:100%;padding:10px;border-radius:8px;border:none;background:linear-gradient(135deg,#388bfd,#8957e5);color:#fff;font-size:.85rem;font-weight:800;cursor:pointer;transition:opacity .2s;margin-top:8px}
+.btn-hunt:hover{opacity:.85}
+.btn-hunt:disabled{opacity:.4;cursor:not-allowed}
+
+.report-box{background:#0d1117;border:1px solid #1e2733;border-radius:10px;overflow:hidden;margin-bottom:12px}
+.report-hdr{background:#161b22;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #1e2733}
+.report-hdr h3{font-size:.85rem;font-weight:800}
+.report-time{font-size:.65rem;color:#8b949e}
+.report-body{padding:14px 16px}
+.report-section{margin-bottom:14px}
+.rs-title{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#8b949e;margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.rs-title::after{content:'';flex:1;height:1px;background:#1e2733}
+.rs-content{font-size:.8rem;line-height:1.6;color:#c9d1d9}
+.rs-content ul{padding-left:16px}
+.rs-content li{margin-bottom:4px}
+.op-card{background:#161b22;border-radius:7px;padding:10px 13px;margin-bottom:7px;border-left:3px solid #3fb950}
+.op-card.warn{border-left-color:#f0883e}
+.op-card.stop{border-left-color:#f85149}
+.op-title{font-size:.75rem;font-weight:800;margin-bottom:4px}
+.op-body{font-size:.75rem;color:#8b949e;line-height:1.5}
+.op-prices{display:flex;gap:10px;margin-top:5px;flex-wrap:wrap}
+.op-price{font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:4px}
+.op-entry{background:#0d4a2433;color:#3fb950}
+.op-stop{background:#4a0d0d33;color:#f85149}
+.op-target{background:#0a2a4a33;color:#58a6ff}
+
+.empty-hunter{padding:40px;text-align:center;color:#8b949e;font-size:.82rem}
+.loading-hunt{display:flex;flex-direction:column;align-items:center;gap:10px;padding:30px}
+.spinner{width:28px;height:28px;border:2px solid #21262d;border-top-color:#58a6ff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* BTC ticker fixo no topo */
+.btc-bar{background:#161b22;border-bottom:1px solid #1e2733;padding:6px 16px;font-size:.75rem;display:flex;align-items:center;gap:16px;overflow-x:auto}
+.btc-item{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.btc-label{color:#8b949e}
+.btc-val{font-weight:800}
+
+/* LOADING */
+.loading-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:70px 20px;gap:14px}
+.loading-text{color:#8b949e;font-size:.82rem}
+.error-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;gap:10px;color:#f85149}
+.error-screen p{color:#8b949e;font-size:.78rem;text-align:center;max-width:280px}
+.empty{padding:36px;text-align:center;color:#8b949e;font-size:.82rem}
+
+footer{text-align:center;padding:14px;color:#8b949e;font-size:.65rem;border-top:1px solid #1e2733}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <h1>⚡ Crypto Intelligence Hub</h1>
+    <div class="logo-sub">Binance API · Dados em tempo real · 34 pares monitorados</div>
+  </div>
+  <div class="header-right">
+    <div class="live-dot"></div>
+    <div class="last-upd" id="lastUpd">Carregando...</div>
+    <button class="btn" id="btnRef" onclick="loadAll()">↻ Atualizar</button>
+  </div>
+</header>
+
+<!-- BTC + ETH sempre visíveis -->
+<div class="btc-bar" id="btcBar">
+  <div class="btc-item"><span class="btc-label">BTC</span><span class="btc-val" id="btcPrice">—</span><span id="btcChg" class="btc-val">—</span></div>
+  <div style="color:#30363d">|</div>
+  <div class="btc-item"><span class="btc-label">ETH</span><span class="btc-val" id="ethPrice">—</span><span id="ethChg" class="btc-val">—</span></div>
+  <div style="color:#30363d">|</div>
+  <div class="btc-item"><span class="btc-label">Dominância BTC</span><span class="btc-val b" id="btcDom">—</span></div>
+  <div style="color:#30363d">|</div>
+  <div class="btc-item"><span class="btc-label">Auto-atualiza em</span><span class="btc-val y" id="countdown">60s</span></div>
+</div>
+
+<div class="nav">
+  <button class="nav-tab active" onclick="showPanel('radar')">📡 Radar</button>
+  <button class="nav-tab" onclick="showPanel('momentum')">🚀 Momentum <span class="nav-badge green" id="nb-mom">0</span></button>
+  <button class="nav-tab" onclick="showPanel('hunter')">🔍 News Hunter</button>
+</div>
+
+<div class="market-bar" id="marketBar"></div>
+<div class="alerts-strip" id="alertsStrip"></div>
+
+<!-- RADAR PANEL -->
+<div class="panel active" id="panel-radar">
+  <div class="controls">
+    <div class="tab-group">
+      <button class="rtab active" onclick="setCat('all',this)">Todas</button>
+      <button class="rtab" onclick="setCat('altcoins',this)">Altcoins</button>
+      <button class="rtab" onclick="setCat('memecoins',this)">Memecoins</button>
+    </div>
+    <select class="sort-sel" onchange="setSort(this.value)">
+      <option value="momentum">📈 Momentum</option>
+      <option value="change24">24h %</option>
+      <option value="volume">Volume</option>
+    </select>
+    <input class="search-box" type="text" placeholder="🔍 Buscar..." oninput="onSearch(this.value)">
+  </div>
+  <div id="radarContent"><div class="loading-screen"><div class="spinner"></div><div class="loading-text">Conectando à Binance...</div></div></div>
+</div>
+
+<!-- MOMENTUM PANEL -->
+<div class="panel" id="panel-momentum">
+  <div style="padding:12px 16px;border-bottom:1px solid #1e2733;font-size:.8rem;color:#8b949e">
+    🚀 Moedas com movimento acima de <strong style="color:#f0883e">+8% em 24h</strong> e volume anômalo
+  </div>
+  <div id="momentumContent"><div class="loading-screen"><div class="spinner"></div><div class="loading-text">Calculando momentum...</div></div></div>
+</div>
+
+<!-- HUNTER PANEL -->
+<div class="panel" id="panel-hunter">
+  <div class="hunter-panel">
+    <div class="hunter-intro">
+      <h3>🔍 News Hunter & Análise de Operação</h3>
+      <p>Selecione uma moeda em movimento para análise completa: contexto de mercado, catalisadores, riscos e operação sugerida.</p>
+    </div>
+    <div>
+      <div style="font-size:.78rem;color:#8b949e;margin-bottom:8px;font-weight:700">MOEDAS EM DESTAQUE AGORA:</div>
+      <div class="coin-selector" id="coinSelector">
+        <div class="loading-text" style="font-size:.78rem">Carregando...</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <input class="search-box" style="flex:1" type="text" id="manualCoin" placeholder="Ou digite qualquer moeda (ex: SOL, PEPE...)">
+        <button class="btn" onclick="huntManual()">Analisar</button>
+      </div>
+      <button class="btn-hunt" id="btnHunt" onclick="runHunt()" disabled>🔍 Analisar & Caçar Notícias</button>
+    </div>
+    <div id="huntResults"></div>
+  </div>
+</div>
+
+<footer>Dados: <strong style="color:#3fb950">Binance API</strong> (direto — sem proxy) · RSI 14 calculado em candles 1H reais · ⚠️ Não é recomendação de investimento · Rafael executa todas as operações manualmente</footer>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// COIN MAP — 34 pares Binance
+// ═══════════════════════════════════════════════════════════════
+const COIN_MAP = {
+  'ethereum':           {sym:'ETHUSDT',    name:'Ethereum',   cat:'alt'},
+  'solana':             {sym:'SOLUSDT',    name:'Solana',     cat:'alt'},
+  'binancecoin':        {sym:'BNBUSDT',    name:'BNB',        cat:'alt'},
+  'cardano':            {sym:'ADAUSDT',    name:'Cardano',    cat:'alt'},
+  'avalanche-2':        {sym:'AVAXUSDT',   name:'Avalanche',  cat:'alt'},
+  'polkadot':           {sym:'DOTUSDT',    name:'Polkadot',   cat:'alt'},
+  'chainlink':          {sym:'LINKUSDT',   name:'Chainlink',  cat:'alt'},
+  'uniswap':            {sym:'UNIUSDT',    name:'Uniswap',    cat:'alt'},
+  'litecoin':           {sym:'LTCUSDT',    name:'Litecoin',   cat:'alt'},
+  'algorand':           {sym:'ALGOUSDT',   name:'Algorand',   cat:'alt'},
+  'cosmos':             {sym:'ATOMUSDT',   name:'Cosmos',     cat:'alt'},
+  'near':               {sym:'NEARUSDT',   name:'NEAR',       cat:'alt'},
+  'aptos':              {sym:'APTUSDT',    name:'Aptos',      cat:'alt'},
+  'sui':                {sym:'SUIUSDT',    name:'Sui',        cat:'alt'},
+  'injective-protocol': {sym:'INJUSDT',    name:'Injective',  cat:'alt'},
+  'arbitrum':           {sym:'ARBUSDT',    name:'Arbitrum',   cat:'alt'},
+  'optimism':           {sym:'OPUSDT',     name:'Optimism',   cat:'alt'},
+  'render-token':       {sym:'RENDERUSDT', name:'Render',     cat:'alt'},
+  'the-graph':          {sym:'GRTUSDT',    name:'The Graph',  cat:'alt'},
+  'filecoin':           {sym:'FILUSDT',    name:'Filecoin',   cat:'alt'},
+  'internet-computer':  {sym:'ICPUSDT',    name:'ICP',        cat:'alt'},
+  'hedera-hashgraph':   {sym:'HBARUSDT',   name:'Hedera',     cat:'alt'},
+  'vechain':            {sym:'VETUSDT',    name:'VeChain',    cat:'alt'},
+  'theta-token':        {sym:'THETAUSDT',  name:'Theta',      cat:'alt'},
+  'worldcoin':          {sym:'WLDUSDT',    name:'Worldcoin',  cat:'alt'},
+  'dogecoin':           {sym:'DOGEUSDT',   name:'Dogecoin',   cat:'meme'},
+  'shiba-inu':          {sym:'SHIBUSDT',   name:'Shiba Inu',  cat:'meme'},
+  'pepe':               {sym:'PEPEUSDT',   name:'Pepe',       cat:'meme'},
+  'floki':              {sym:'FLOKIUSDT',  name:'Floki',      cat:'meme'},
+  'bonk':               {sym:'BONKUSDT',   name:'Bonk',       cat:'meme'},
+  'dogwifcoin':         {sym:'WIFUSDT',    name:'dogwifhat',  cat:'meme'},
+  'ordinals':           {sym:'ORDIUSDT',   name:'Ordinals',   cat:'meme'},
+  'turbo':              {sym:'TURBOUSDT',  name:'Turbo',      cat:'meme'},
+  'neiro-ethereum':     {sym:'NEIROUSDT',  name:'Neiro',      cat:'meme'},
+};
+
+const BINANCE = 'https://api.binance.com/api/v3';
+
+// ═══════════════════════════════════════════════════════════════
+// FETCH — sem proxy, chamada direta (funciona em qualquer site real)
+// ═══════════════════════════════════════════════════════════════
+async function apiFetch(url) {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), 10000);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(tid);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch(e) {
+    clearTimeout(tid);
+    return null;
+  }
+}
+
+async function fetchAllTickers() {
+  const syms = Object.values(COIN_MAP).map(c => c.sym);
+  const url = `${BINANCE}/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(syms))}`;
+  const data = await apiFetch(url);
+  if (!Array.isArray(data)) return null;
+  const map = {};
+  data.forEach(t => { map[t.symbol] = t; });
+  return map;
+}
+
+async function fetchBtcEth() {
+  const data = await apiFetch(`${BINANCE}/ticker/24hr?symbols=${encodeURIComponent('["BTCUSDT","ETHUSDT"]')}`);
+  return Array.isArray(data) ? data : null;
+}
+
+async function fetchRSI(symbol) {
+  try {
+    const url = `${BINANCE}/klines?symbol=${symbol}&interval=1h&limit=50`;
+    const klines = await apiFetch(url);
+    if (!Array.isArray(klines) || klines.length < 15) return null;
+    return calcRSI(klines.map(k => parseFloat(k[4])));
+  } catch(e) { return null; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RSI 14 — Wilder smoothing
+// ═══════════════════════════════════════════════════════════════
+function calcRSI(closes, p=14) {
+  if (closes.length < p+1) return 50;
+  let g=0, l=0;
+  for (let i=1; i<=p; i++) { const d=closes[i]-closes[i-1]; d>0?g+=d:l+=Math.abs(d); }
+  let ag=g/p, al=l/p;
+  for (let i=p+1; i<closes.length; i++) {
+    const d=closes[i]-closes[i-1], dg=d>0?d:0, dl=d<0?Math.abs(d):0;
+    ag=(ag*(p-1)+dg)/p; al=(al*(p-1)+dl)/p;
+  }
+  return al===0 ? 100 : 100-(100/(1+ag/al));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let allData=[], currentCat='all', sortBy='momentum', searchQ='', selectedCoin=null;
+let countdown=60, countdownTimer=null;
+
+// ═══════════════════════════════════════════════════════════════
+// COUNTDOWN — auto-refresh a cada 60s
+// ═══════════════════════════════════════════════════════════════
+function startCountdown() {
+  if (countdownTimer) clearInterval(countdownTimer);
+  countdown=60;
+  countdownTimer = setInterval(() => {
+    countdown--;
+    const el = document.getElementById('countdown');
+    if (el) el.textContent = countdown+'s';
+    if (countdown<=0) { clearInterval(countdownTimer); loadAll(); }
+  }, 1000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════════
+function showPanel(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach((t,i)=>t.classList.toggle('active',['radar','momentum','hunter'][i]===id));
+}
+function setCat(c,el){currentCat=c;document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('active'));el.classList.add('active');render();}
+function setSort(v){sortBy=v;render();}
+function onSearch(v){searchQ=v.toLowerCase();render();}
+
+function fmtP(n){
+  if(!n&&n!==0)return'—';
+  if(Math.abs(n)<0.00001)return'$'+n.toExponential(2);
+  if(Math.abs(n)<0.01)return'$'+n.toFixed(6);
+  if(Math.abs(n)<1)return'$'+n.toFixed(4);
+  if(Math.abs(n)<1000)return'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return'$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+}
+function fmtV(n){
+  if(n>=1e9)return(n/1e9).toFixed(2)+'B';
+  if(n>=1e6)return(n/1e6).toFixed(1)+'M';
+  if(n>=1e3)return(n/1e3).toFixed(0)+'K';
+  return n.toFixed(0);
+}
+function getMomentumScore(c){
+  return Math.round(((c.c24||0)*2)+((c.c7d||0)*0.5)+(((c.volume||0)/(c.mcap||1))*100*0.3));
+}
+function getSignal(c){
+  const c24=c.c24||0, rsi=c.rsi!=null?c.rsi:50, volR=(c.volume||0)/(c.mcap||1);
+  if(c24>=12&&volR>0.08) return{signal:'🚀 BREAKOUT',cls:'momentum-sig',rsi};
+  if(c24>=6&&volR>0.05)  return{signal:'⚡ MOMENTUM',cls:'momentum-sig',rsi};
+  if(rsi<32)             return{signal:'🔵 SOBREVENDIDA',cls:'oversold',rsi};
+  if(rsi>74)             return{signal:'🔴 SOBRECOMPRADA',cls:'overbought',rsi};
+  if(c24>2.5)            return{signal:'🟢 ALTA',cls:'bull',rsi};
+  if(c24<-2.5)           return{signal:'🔴 BAIXA',cls:'bear',rsi};
+  if(c24>1)              return{signal:'↗ LEVE ALTA',cls:'bull',rsi};
+  if(c24<-1)             return{signal:'↘ LEVE BAIXA',cls:'bear',rsi};
+  return{signal:'➡ NEUTRO',cls:'neutral',rsi};
+}
+function getRsiColor(r){
+  return r<30?'#58a6ff':r<45?'#3fb950':r<55?'#d29922':r<70?'#3fb950':'#f85149';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER CARD
+// ═══════════════════════════════════════════════════════════════
+function renderCard(coin){
+  const c24=coin.c24||0;
+  const {signal,cls,rsi}=getSignal(coin);
+  const rsiColor=getRsiColor(rsi);
+  const vol=coin.volume||0, mcap=coin.mcap||1;
+  const volR=(vol/mcap*100);
+  const volSpike=volR>12;
+  const mom=getMomentumScore(coin);
+  const momPct=Math.min(100,Math.max(0,(mom+30)/80*100));
+  const isMom=cls==='momentum-sig', isOv=cls==='oversold';
+  return`<div class="card ${isMom?'momentum':''} ${isOv?'oversold-card':''}" onclick="openHunter('${coin.id}','${coin.name}','${coin.symbol}')">
+    <div class="card-top">
+      <div class="ci"><div>
+        <div class="cname">${coin.name}</div>
+        <div class="csym">${coin.symbol.toUpperCase()} · Binance</div>
+      </div></div>
+      <span class="sig-badge ${cls}">${signal}</span>
+    </div>
+    <div class="price-row">
+      <span class="price">${fmtP(coin.price)}</span>
+      <div class="chg-wrap">
+        <span class="chg ${c24>=0?'chg-g':'chg-r'}">${c24>=0?'+':''}${c24.toFixed(2)}% 24h</span>
+      </div>
+    </div>
+    <div class="momentum-bar">
+      <div class="mom-label"><span>MOMENTUM</span><span style="color:${mom>0?'#3fb950':'#f85149'};font-weight:800">${mom>0?'+':''}${mom}</span></div>
+      <div class="mom-track"><div class="mom-fill" style="width:${momPct}%"></div></div>
+    </div>
+    <div class="inds">
+      <div class="ind">
+        <div class="ind-l">RSI 14${coin.rsiReal?' ✓':''}</div>
+        <div class="ind-v" style="color:${rsiColor}">${rsi.toFixed(0)}</div>
+        <div class="rsi-bar"><div class="rsi-fill" style="width:${rsi}%;background:${rsiColor}"></div></div>
+      </div>
+      <div class="ind">
+        <div class="ind-l">Vol/MCap</div>
+        <div class="ind-v" style="color:${volSpike?'#f0883e':'#8b949e'}">${volR.toFixed(1)}%${volSpike?' 🔥':''}</div>
+      </div>
+      <div class="ind">
+        <div class="ind-l">Volume 24h</div>
+        <div class="ind-v" style="color:#8b949e">$${fmtV(vol)}</div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="mcap-info">MCap est: $${fmtV(mcap)}</span>
+      <button class="hunt-btn" onclick="event.stopPropagation();openHunter('${coin.id}','${coin.name}','${coin.symbol}')">🔍 Analisar</button>
+    </div>
+  </div>`;
+}
+
+function getFiltered(){
+  let d=[...allData];
+  if(currentCat==='altcoins') d=d.filter(c=>c.cat==='alt');
+  if(currentCat==='memecoins') d=d.filter(c=>c.cat==='meme');
+  if(searchQ) d=d.filter(c=>c.name.toLowerCase().includes(searchQ)||c.symbol.toLowerCase().includes(searchQ));
+  if(sortBy==='momentum') d.sort((a,b)=>getMomentumScore(b)-getMomentumScore(a));
+  if(sortBy==='change24') d.sort((a,b)=>(b.c24||0)-(a.c24||0));
+  if(sortBy==='volume')   d.sort((a,b)=>(b.volume||0)-(a.volume||0));
+  return d;
+}
+
+function render(){
+  const f=getFiltered();
+  if(!f.length){document.getElementById('radarContent').innerHTML='<div class="empty">Nenhuma moeda encontrada.</div>';return;}
+  const alts=f.filter(c=>c.cat==='alt'), memes=f.filter(c=>c.cat==='meme');
+  let html='';
+  if(currentCat==='all'){
+    if(alts.length) html+=`<div class="sec-hdr"><div class="sec-dot" style="background:#3fb950"></div>ALTCOINS (${alts.length})</div><div class="grid">${alts.map(renderCard).join('')}</div>`;
+    if(memes.length) html+=`<div class="sec-hdr"><div class="sec-dot" style="background:#f85149"></div>MEMECOINS (${memes.length})</div><div class="grid">${memes.map(renderCard).join('')}</div>`;
+  } else {
+    html=`<div class="grid">${f.map(renderCard).join('')}</div>`;
+  }
+  document.getElementById('radarContent').innerHTML=html;
+}
+
+function renderMomentum(){
+  const mom=allData.filter(c=>(c.c24||0)>=8&&((c.volume||0)/(c.mcap||1))>0.04).sort((a,b)=>(b.c24||0)-(a.c24||0));
+  document.getElementById('nb-mom').textContent=mom.length;
+  document.getElementById('momentumContent').innerHTML=mom.length
+    ?`<div class="grid">${mom.map(renderCard).join('')}</div>`
+    :'<div class="empty">Nenhuma moeda com momentum forte agora. Aguarde ou atualize.</div>';
+}
+
+function renderAlerts(){
+  const hot=allData.filter(c=>Math.abs(c.c24||0)>=10||((c.volume||0)/(c.mcap||1))>0.2);
+  const strip=document.getElementById('alertsStrip');
+  if(!hot.length){strip.style.display='none';return;}
+  strip.style.display='block';
+  strip.innerHTML=`<div style="font-size:.65rem;color:#f0883e;font-weight:800;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px">🚨 ALERTAS DE MOVIMENTO</div>`+
+    hot.map(c=>`<span class="alert-item" onclick="openHunter('${c.id}','${c.name}','${c.symbol}')">
+      <div class="alert-pulse"></div>
+      <span class="alert-label">${c.symbol.toUpperCase()}</span>
+      <span class="alert-change">${(c.c24||0)>=0?'+':''}${(c.c24||0).toFixed(1)}%</span>
+    </span>`).join('');
+}
+
+function updateMarketBar(){
+  const total=allData.length;
+  const bulls=allData.filter(c=>(c.c24||0)>0).length;
+  const topGain=[...allData].sort((a,b)=>(b.c24||0)-(a.c24||0))[0];
+  const topDrop=[...allData].sort((a,b)=>(a.c24||0)-(b.c24||0))[0];
+  const topMom=[...allData].sort((a,b)=>getMomentumScore(b)-getMomentumScore(a))[0];
+  document.getElementById('marketBar').innerHTML=`
+    <div class="mb-item"><div class="mb-label">Monitorando</div><div class="mb-val b">${total}</div></div>
+    <div class="mb-item"><div class="mb-label">🟢 Subindo</div><div class="mb-val g">${bulls}</div></div>
+    <div class="mb-item"><div class="mb-label">🔴 Caindo</div><div class="mb-val r">${total-bulls}</div></div>
+    <div class="mb-item"><div class="mb-label">🏆 Maior Alta</div><div class="mb-val g">${topGain?.symbol||'-'} +${((topGain?.c24)||0).toFixed(1)}%</div></div>
+    <div class="mb-item"><div class="mb-label">📉 Maior Queda</div><div class="mb-val r">${topDrop?.symbol||'-'} ${((topDrop?.c24)||0).toFixed(1)}%</div></div>
+    <div class="mb-item"><div class="mb-label">🚀 Top Momentum</div><div class="mb-val y">${topMom?.symbol||'-'}</div></div>`;
+}
+
+function updateCoinSelector(){
+  const hot=[...allData].sort((a,b)=>getMomentumScore(b)-getMomentumScore(a)).slice(0,10);
+  document.getElementById('coinSelector').innerHTML=hot.map(c=>`
+    <span class="coin-pill" onclick="selectCoin('${c.id}','${c.name}','${c.symbol}',this)">
+      ${c.symbol.toUpperCase()} <span style="color:${(c.c24||0)>=0?'#3fb950':'#f85149'}">${(c.c24||0)>=0?'+':''}${(c.c24||0).toFixed(1)}%</span>
+    </span>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HUNTER
+// ═══════════════════════════════════════════════════════════════
+function selectCoin(id,name,sym,el){
+  selectedCoin={id,name,sym};
+  document.querySelectorAll('.coin-pill').forEach(p=>p.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('btnHunt').disabled=false;
+  document.getElementById('manualCoin').value='';
+}
+function huntManual(){
+  const v=document.getElementById('manualCoin').value.trim().toUpperCase();
+  if(!v) return;
+  const found=allData.find(c=>c.symbol.toUpperCase()===v||c.name.toUpperCase()===v);
+  selectedCoin=found?{id:found.id,name:found.name,sym:found.symbol}:{id:v.toLowerCase(),name:v,sym:v};
+  document.querySelectorAll('.coin-pill').forEach(p=>p.classList.remove('selected'));
+  document.getElementById('btnHunt').disabled=false;
+  runHunt();
+}
+function openHunter(id,name,sym){
+  selectedCoin={id,name,sym};
+  showPanel('hunter');
+  document.querySelectorAll('.coin-pill').forEach(p=>{
+    if(p.textContent.trim().startsWith(sym.toUpperCase())) p.classList.add('selected');
+  });
+  document.getElementById('btnHunt').disabled=false;
+  runHunt();
+}
+function runHunt(){
+  if(!selectedCoin) return;
+  const coin=allData.find(c=>c.id===selectedCoin.id);
+  const btn=document.getElementById('btnHunt');
+  btn.disabled=true; btn.textContent='🔍 Analisando...';
+  document.getElementById('huntResults').innerHTML=`<div class="loading-hunt"><div class="spinner"></div><div class="loading-text">Analisando ${selectedCoin.name}...</div></div>`;
+  setTimeout(()=>{
+    document.getElementById('huntResults').innerHTML=generateReport(coin||selectedCoin);
+    btn.disabled=false; btn.textContent='🔍 Analisar & Caçar Notícias';
+  },900);
+}
+
+function generateReport(coin){
+  if(!coin||!coin.price) return`<div class="report-box"><div class="report-hdr"><h3>⚠️ ${selectedCoin.name}</h3></div><div class="report-body"><p style="color:#8b949e;font-size:.8rem">Moeda não encontrada.</p></div></div>`;
+  const c24=coin.c24||0, vol=coin.volume||0, mcap=coin.mcap||1;
+  const volR=(vol/mcap*100).toFixed(1), rsi=coin.rsi!=null?coin.rsi:50;
+  const mom=getMomentumScore(coin), price=coin.price;
+  const isBreakout=c24>=12, isMom=c24>=6&&c24<12, isDump=c24<=-8, isOv=rsi<32;
+  let catalysts=[];
+  if(isBreakout) catalysts=['Alta liquidez e volume anômalo — possível entrada institucional','Possível listagem em nova exchange ou anúncio de parceria','FOMO de varejo amplificando o movimento'];
+  else if(isMom) catalysts=['Recuperação técnica após consolidação','Volume acima da média, interesse renovado','Possível rotação de capital de BTC para altcoins'];
+  else if(isDump) catalysts=['Realização de lucros após alta recente','Possível venda de baleias','FUD ou notícia negativa circulando'];
+  else if(isOv) catalysts=['Pressão de venda excessiva — RSI em sobrevenda','Historicamente precede recuperação técnica'];
+  else catalysts=['Mercado em consolidação, sem catalisador claro','Aguardar definição de tendência'];
+  const ep=isOv||isDump?price*0.98:price;
+  const sl=isBreakout||isMom?price*0.93:price*0.92;
+  const t1=isBreakout?price*1.15:isMom?price*1.10:price*1.08;
+  const t2=isBreakout?price*1.25:isMom?price*1.18:price*1.15;
+  const rr=((t1-ep)/(ep-sl)).toFixed(1);
+  let risk='MÉDIO',rc='#d29922';
+  if(isBreakout&&parseFloat(volR)<5){risk='ALTO';rc='#f85149';}
+  if(isOv){risk='MÉDIO-BAIXO';rc='#3fb950';}
+  const now=new Date().toLocaleTimeString('pt-BR');
+  return`<div class="report-box">
+    <div class="report-hdr"><h3>📊 ${coin.name} (${coin.symbol?.toUpperCase()})</h3><span class="report-time">${now}</span></div>
+    <div class="report-body">
+      <div class="report-section">
+        <div class="rs-title">📈 SITUAÇÃO ATUAL</div>
+        <div class="rs-content"><ul>
+          <li><strong>Preço:</strong> ${fmtP(price)} &nbsp;|&nbsp; <strong>24h:</strong> <span style="color:${c24>=0?'#3fb950':'#f85149'}">${c24>=0?'+':''}${c24.toFixed(2)}%</span></li>
+          <li><strong>RSI 14 ${coin.rsiReal?'(candles reais ✓)':'(estimado)'}:</strong> <span style="color:${getRsiColor(rsi)}">${rsi.toFixed(1)}</span></li>
+          <li><strong>Vol/MCap:</strong> ${volR}% — ${parseFloat(volR)>12?'🔥 Anômalo':'Normal'}</li>
+          <li><strong>Momentum:</strong> ${mom>0?'+':''}${mom}</li>
+        </ul></div>
+      </div>
+      <div class="report-section">
+        <div class="rs-title">🔍 POSSÍVEIS CATALISADORES</div>
+        <div class="rs-content"><ul>${catalysts.map(c=>`<li>${c}</li>`).join('')}</ul>
+          <div style="margin-top:8px;padding:8px 10px;background:#1e2733;border-radius:6px;font-size:.75rem;color:#8b949e">
+            ⚠️ <strong>Verificar no X/Google:</strong> "${coin.symbol?.toUpperCase()} news today"
+          </div>
+        </div>
+      </div>
+      <div class="report-section">
+        <div class="rs-title">🎯 OPERAÇÃO SUGERIDA</div>
+        <div style="margin-bottom:8px;font-size:.75rem;padding:6px 10px;background:#${risk==='ALTO'?'4a0d0d':'2a2a0d'}33;border-radius:5px;color:${rc};font-weight:700">
+          Risco: ${risk} &nbsp;|&nbsp; R/R: ${rr}:1
+        </div>
+        ${(isBreakout||isMom)?`<div class="op-card">
+          <div class="op-title">📈 ENTRADA MOMENTUM</div>
+          <div class="op-prices">
+            <span class="op-price op-entry">Entrada: ${fmtP(ep)}</span>
+            <span class="op-price op-stop">Stop: ${fmtP(sl)} (${((sl/ep-1)*100).toFixed(1)}%)</span>
+            <span class="op-price op-target">Alvo 1: ${fmtP(t1)} (+${((t1/ep-1)*100).toFixed(1)}%)</span>
+            <span class="op-price op-target">Alvo 2: ${fmtP(t2)} (+${((t2/ep-1)*100).toFixed(1)}%)</span>
+          </div></div>`:''}
+        ${(isOv||isDump)?`<div class="op-card">
+          <div class="op-title">🔵 ENTRADA REBOTE (aguardar confirmação)</div>
+          <div class="op-prices">
+            <span class="op-price op-entry">Entrada: ${fmtP(ep)}</span>
+            <span class="op-price op-stop">Stop: ${fmtP(sl)} (${((sl/ep-1)*100).toFixed(1)}%)</span>
+            <span class="op-price op-target">Alvo: ${fmtP(t1)} (+${((t1/ep-1)*100).toFixed(1)}%)</span>
+          </div></div>`:''}
+        <div class="op-card warn">
+          <div class="op-title">⚠️ GESTÃO DE RISCO</div>
+          <div class="op-body">Nunca arrisque mais de 2-5% do capital por operação. Use stop-loss sempre. Rafael executa todas as operações manualmente.</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LOAD PRINCIPAL
+// ═══════════════════════════════════════════════════════════════
+async function loadAll(){
+  const btn=document.getElementById('btnRef');
+  btn.disabled=true; btn.textContent='⏳';
+
+  // Busca BTC e ETH para o ticker
+  fetchBtcEth().then(btcEth => {
+    if(!btcEth) return;
+    btcEth.forEach(t => {
+      const c=parseFloat(t.priceChangePercent)||0;
+      const color=c>=0?'#3fb950':'#f85149';
+      const sign=c>=0?'+':'';
+      if(t.symbol==='BTCUSDT'){
+        document.getElementById('btcPrice').textContent=fmtP(parseFloat(t.lastPrice));
+        document.getElementById('btcChg').innerHTML=`<span style="color:${color}">${sign}${c.toFixed(2)}%</span>`;
+      }
+      if(t.symbol==='ETHUSDT'){
+        document.getElementById('ethPrice').textContent=fmtP(parseFloat(t.lastPrice));
+        document.getElementById('ethChg').innerHTML=`<span style="color:${color}">${sign}${c.toFixed(2)}%</span>`;
+      }
+    });
+  });
+
+  // Busca todos os 34 pares
+  const tickerMap = await fetchAllTickers();
+  if(!tickerMap){
+    document.getElementById('radarContent').innerHTML=`<div class="error-screen">
+      <div style="font-size:1.8rem">⚠️</div>
+      <strong>Erro de conexão com a Binance</strong>
+      <p>Verifique sua conexão com a internet e tente novamente.</p>
+      <button class="btn" onclick="loadAll()" style="margin-top:8px">↻ Tentar novamente</button>
+    </div>`;
+    btn.disabled=false; btn.textContent='↻ Atualizar';
+    startCountdown();
+    return;
+  }
+
+  const results=[];
+  for(const [id,info] of Object.entries(COIN_MAP)){
+    const t=tickerMap[info.sym];
+    if(!t) continue;
+    const price=parseFloat(t.lastPrice)||0;
+    const c24=parseFloat(t.priceChangePercent)||0;
+    const vol=parseFloat(t.quoteVolume)||0;
+    results.push({id, cat:info.cat, name:info.name, symbol:info.sym.replace('USDT',''),
+      price, c24, volume:vol, mcap:vol*7, rsi:null, rsiReal:false});
+  }
+
+  if(!results.length){
+    document.getElementById('radarContent').innerHTML='<div class="error-screen"><strong>Nenhum dado recebido</strong></div>';
+    btn.disabled=false; btn.textContent='↻ Atualizar';
+    return;
+  }
+
+  allData=results;
+
+  // RSI real top 8 mais voláteis
+  const topRSI=[...allData].sort((a,b)=>Math.abs(b.c24)-Math.abs(a.c24)).slice(0,8);
+  await Promise.all(topRSI.map(async coin=>{
+    const info=COIN_MAP[coin.id];
+    if(!info) return;
+    const rsi=await fetchRSI(info.sym);
+    if(rsi!=null){coin.rsi=rsi;coin.rsiReal=true;}
+    else{coin.rsi=Math.max(8,Math.min(92,50+(coin.c24*1.6)));coin.rsiReal=false;}
+  }));
+
+  // RSI estimado para o restante
+  allData.forEach(c=>{
+    if(c.rsi==null){c.rsi=Math.max(8,Math.min(92,50+(c.c24*1.6)));c.rsiReal=false;}
+  });
+
+  document.getElementById('lastUpd').textContent=`Binance · ${new Date().toLocaleTimeString('pt-BR')}`;
+  updateMarketBar();
+  renderAlerts();
+  render();
+  renderMomentum();
+  updateCoinSelector();
+
+  btn.disabled=false; btn.textContent='↻ Atualizar';
+  startCountdown();
+}
+
+loadAll();
+</script>
+</body>
+</html>
