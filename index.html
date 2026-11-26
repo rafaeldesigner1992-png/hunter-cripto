@@ -154,6 +154,16 @@ header{background:#0d1117;border-bottom:1px solid #1e2733;padding:12px 20px;disp
 .empty{padding:36px;text-align:center;color:#8b949e;font-size:.82rem}
 
 footer{text-align:center;padding:14px;color:#8b949e;font-size:.65rem;border-top:1px solid #1e2733}
+
+/* TRENDING CMC */
+.trend-pill{display:flex;align-items:center;gap:6px;background:#1e2733;border:1px solid #30363d;border-radius:20px;padding:5px 10px;font-size:.72rem;cursor:pointer;transition:border-color .2s}
+.trend-pill:hover{border-color:#58a6ff}
+.trend-rank{color:#8b949e;font-size:.65rem;font-weight:700}
+.trend-sym{color:#e6edf3;font-weight:700}
+.trend-chg.g{color:#3fb950}.trend-chg.r{color:#f85149}
+
+/* ALT SEASON BADGE */
+.alt-season-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:.65rem;font-weight:800}
 </style>
 </head>
 <body>
@@ -177,6 +187,8 @@ footer{text-align:center;padding:14px;color:#8b949e;font-size:.65rem;border-top:
   <div class="btc-item"><span class="btc-label">ETH</span><span class="btc-val" id="ethPrice">—</span><span id="ethChg" class="btc-val">—</span></div>
   <div style="color:#30363d">|</div>
   <div class="btc-item"><span class="btc-label">Dominância BTC</span><span class="btc-val b" id="btcDom">—</span></div>
+  <div style="color:#30363d">|</div>
+  <div class="btc-item"><span class="btc-label">🌡️ Alt Season</span><span class="btc-val" id="altSeasonVal">—</span></div>
   <div style="color:#30363d">|</div>
   <div class="btc-item"><span class="btc-label">Auto-atualiza em</span><span class="btc-val y" id="countdown">60s</span></div>
 </div>
@@ -206,6 +218,12 @@ footer{text-align:center;padding:14px;color:#8b949e;font-size:.65rem;border-top:
     <input class="search-box" type="text" placeholder="🔍 Buscar..." oninput="onSearch(this.value)">
   </div>
   <div id="radarContent"><div class="loading-screen"><div class="spinner"></div><div class="loading-text">Conectando à Binance...</div></div></div>
+
+  <!-- TRENDING CMC -->
+  <div id="trendingSection" style="display:none;padding:12px 16px;border-top:1px solid #1e2733">
+    <div style="font-size:.7rem;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-weight:700">🔥 Trending CoinMarketCap (últimas 24h)</div>
+    <div id="trendingContent" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+  </div>
 </div>
 
 <!-- MOMENTUM PANEL -->
@@ -282,6 +300,70 @@ const COIN_MAP = {
 };
 
 const BINANCE = 'https://api.binance.com/api/v3';
+const CMC_PROXY = 'https://cmc-proxy.rafaeldesigner1992.workers.dev';
+
+// ═══════════════════════════════════════════════════════════════
+// CMC via Cloudflare Worker (CORS proxy + chave segura)
+// ═══════════════════════════════════════════════════════════════
+async function fetchCMC(endpoint, extraParams = '') {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), 10000);
+  try {
+    const url = `${CMC_PROXY}?endpoint=${encodeURIComponent(endpoint)}${extraParams ? '&' + extraParams : ''}`;
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(tid);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch(e) {
+    clearTimeout(tid);
+    return null;
+  }
+}
+
+async function loadTrending() {
+  const data = await fetchCMC('/v1/cryptocurrency/trending/latest');
+  if (!data || !data.data || !data.data.trending) return;
+  const list = data.data.trending.slice(0, 10);
+  const el = document.getElementById('trendingContent');
+  const sec = document.getElementById('trendingSection');
+  if (!el || !sec || !list.length) return;
+  sec.style.display = 'block';
+  el.innerHTML = list.map((c, i) => {
+    const chg = c.quote?.USD?.percent_change_24h ?? 0;
+    const cls = chg >= 0 ? 'g' : 'r';
+    const sign = chg >= 0 ? '+' : '';
+    return `<div class="trend-pill" onclick="openHunterById('${c.slug}','${c.name}','${c.symbol}')">
+      <span class="trend-rank">#${i+1}</span>
+      <span class="trend-sym">${c.symbol}</span>
+      <span class="trend-chg ${cls}">${sign}${chg.toFixed(1)}%</span>
+    </div>`;
+  }).join('');
+}
+
+async function loadAltSeasonIndex() {
+  const data = await fetchCMC('/v1/altcoin-season-index/latest');
+  if (!data || !data.data) return;
+  const idx = data.data.altcoin_season_index ?? null;
+  const el = document.getElementById('altSeasonVal');
+  if (!el || idx === null) return;
+  let label, color;
+  if (idx >= 75)      { label = `${idx} 🌊 Alt Season`; color = '#3fb950'; }
+  else if (idx >= 50) { label = `${idx} ↗ Neutro+`;      color = '#d29922'; }
+  else if (idx >= 25) { label = `${idx} ↘ BTC dominante`; color = '#f0883e'; }
+  else                { label = `${idx} 🟠 BTC Season`;  color = '#f85149'; }
+  el.innerHTML = `<span style="color:${color};font-weight:800">${label}</span>`;
+}
+
+function openHunterById(id, name, sym) {
+  const found = allData.find(c => c.id === id || c.symbol.toUpperCase() === sym.toUpperCase());
+  if (found) { openHunter(found.id, found.name, found.symbol); }
+  else {
+    selectedCoin = { id, name, sym };
+    showPanel('hunter');
+    document.getElementById('btnHunt').disabled = false;
+    runHunt();
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // FETCH — sem proxy, chamada direta (funciona em qualquer site real)
@@ -718,6 +800,10 @@ async function loadAll(){
 
   btn.disabled=false; btn.textContent='↻ Atualizar';
   startCountdown();
+
+  // Dados CMC em paralelo (não bloqueiam o carregamento principal)
+  loadTrending().catch(() => {});
+  loadAltSeasonIndex().catch(() => {});
 }
 
 loadAll();
